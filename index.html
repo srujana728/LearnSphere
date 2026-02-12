@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>LearnSphere | AI ML Learning</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; display: flex; margin: 0; height: 100vh; background: #f4f7f6; }
+        .sidebar { width: 300px; background: #1a1c23; color: white; padding: 25px; display: flex; flex-direction: column; }
+        .sidebar h2 { color: #4ade80; text-align: center; }
+        .sidebar p { font-size: 0.9rem; color: #9ca3af; margin-top: 15px; }
+        select { width: 100%; padding: 12px; background: #2d2f39; color: white; border: 1px solid #3f414d; border-radius: 8px; margin-bottom: 10px; }
+        button { width: 100%; padding: 12px; margin-top: 10px; background: transparent; border: 1px solid #3f414d; color: white; cursor: pointer; border-radius: 8px; text-align: left; }
+        button:hover { background: #4ade80; color: #1a1c23; }
+        .main-content { flex: 1; padding: 40px; overflow-y: auto; }
+        #outputBox { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); min-height: 400px; white-space: pre-wrap; line-height: 1.7; }
+        .loader { color: #10b981; font-weight: bold; }
+        
+        /* New Audio Section UI */
+        #audioSection { display: none; background: #1a1c23; padding: 15px; border-radius: 10px; margin-bottom: 20px; border-left: 5px solid #4ade80; }
+        .audio-label { color: #4ade80; font-weight: bold; margin-bottom: 10px; display: block; }
+        audio { width: 100%; }
+
+        /* Visual Marker Box UI */
+        .visual-marker { background: #f0fdf4; border: 1px dashed #22c55e; color: #166534; padding: 15px; border-radius: 8px; margin: 15px 0; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <h2>LearnSphere</h2>
+        <p>1. Select Learning Level:</p>
+        <select id="levelSelect" onchange="updateTopics()">
+            <option value="beginner">Beginner</option>
+            <option value="intermediate">Intermediate</option>
+            <option value="expert">Expert</option>
+        </select>
+        <p>2. Choose Topic:</p>
+        <select id="topicSelect"></select>
+        <p>3. Select Mode:</p>
+        <button onclick="handleGenerate('explanation')">📚 Concept Explanation</button>
+        <button onclick="handleGenerate('code')">💻 Code Generation</button>
+        <button onclick="handleGenerate('visual')">🖼️ Visual Learning Aids</button>
+        <button onclick="handleGenerate('audio')">🎧 Audio Lessons</button>
+    </div>
+
+    <div class="main-content">
+        <div id="audioSection">
+            <span class="audio-label">🎧 AI Voice Lesson Ready</span>
+            <audio id="audioPlayer" controls></audio>
+            <a id="downloadBtn" href="#" style="color: #4ade80; font-size: 0.8rem;" download="lesson.mp3">Download MP3</a>
+        </div>
+
+        <div id="outputBox">
+            <h3>Welcome to LearnSphere</h3>
+            <p>Pick a level and topic to generate AI-powered ML content.</p>
+        </div>
+    </div>
+
+    <script>
+        const topicData = {
+            beginner: ["What is Machine Learning?","Types of Machine Learning","Linear Regression", "Decision Trees", "K-Nearest Neighbors"],
+            intermediate: ["Random Forest", "Support Vector Machines", "Neural Networks", "Gradient Descent"],
+            expert: ["Transformers", "Generative Adversarial Networks", "Reinforcement Learning", "NLP Architectures"]
+        };
+
+        function updateTopics() {
+            const level = document.getElementById('levelSelect').value;
+            const topicSelect = document.getElementById('topicSelect');
+            topicSelect.innerHTML = "";
+            topicData[level].forEach(topic => {
+                let option = document.createElement("option");
+                option.value = topic; option.text = topic;
+                topicSelect.appendChild(option);
+            });
+        }
+
+        async function handleGenerate(mode) {
+            const topic = document.getElementById('topicSelect').value;
+            const level = document.getElementById('levelSelect').value;
+            const outputBox = document.getElementById('outputBox');
+            const audioSection = document.getElementById('audioSection');
+            const audioPlayer = document.getElementById('audioPlayer');
+            const downloadBtn = document.getElementById('downloadBtn');
+
+            outputBox.innerHTML = `<p class="loader">Generating ${mode} for ${topic}...</p>`;
+            audioSection.style.display = 'none';
+
+            try {
+                const response = await fetch('http://127.0.0.1:5000/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ topic, level, mode })
+                });
+
+                if (!response.ok) throw new Error('Server error');
+                const data = await response.json();
+
+                if (mode === 'audio') {
+                    if (data.audio_url) {
+                        audioSection.style.display = 'block';
+                        audioPlayer.src = data.audio_url + "?t=" + new Date().getTime();
+                        downloadBtn.href = data.audio_url;
+                        outputBox.innerHTML = `<h3>🎧 Audio Lesson Ready</h3><p>Playing lesson for <b>${topic}</b>...</p>`;
+                        audioPlayer.load();
+                        audioPlayer.play();
+                    }
+                } else {
+                    // Turn [VISUAL: ...] markers into nice green boxes
+                    let formattedOutput = (data.output || data.error).replace(/\[VISUAL: (.*?)\]/g, 
+                        '<div class="visual-marker"><b>🖼️ Visual Guide:</b> $1</div>');
+                    outputBox.innerHTML = formattedOutput;
+                }
+            } catch (err) {
+                console.error(err);
+                outputBox.innerHTML = `<p style="color:red;">Backend Connection Failed! Ensure your terminal shows "Running on http://127.0.0.1:5000"</p>`;
+            }
+        }
+        window.onload = updateTopics;
+    </script>
+</body>
+</html>
